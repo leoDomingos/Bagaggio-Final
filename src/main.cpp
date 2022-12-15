@@ -42,8 +42,8 @@ bool contou = false;
 
 int display[8] = {33, 32, 18, 5, 17, 25, 26, 19};
 
-const char* ssid     = "JUIZADODAINF";    // Nome do Wifi
-const char* password = "100juizo2018";   // Senha
+const char* ssid     = "Fluxo";    // Nome do Wifi
+const char* password = "foconocliente";   // Senha
 
 const char* serverName = "https://database-bagaggio-flask.herokuapp.com/registro";
 
