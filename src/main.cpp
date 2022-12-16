@@ -24,7 +24,7 @@ int led_banco_de_dados = 23;
 int entraram = 0;                   // Quantidade de pessoas que...
 int sairam = 0;
 
-int deteccao_maxima = 1000;         // Valor máximo de leitura dos fotorreceptores antes de ser considerado como obstruído.
+int deteccao_maxima = 500;         // Valor máximo de leitura dos fotorreceptores antes de ser considerado como obstruído.
 int tempo_maximo = 2000;            // Tempo máximo que uma obstrução na esquerda seguida de uma na direita vai contar como alguém passando.
 int tempo_limite_alinhamento = 20 * 1000; // Limite de tempo antes de os laser serem considerados fora de alinhamento.
 bool is_obstruido_esq = false;      // Essas variáveis vão dizer se o sensor está obstruído ou não.
@@ -89,6 +89,7 @@ void setup() {
 void loop() {
   digitalWrite(entrou_led, LOW);
   digitalWrite(saiu_led, LOW);
+  printar_leituras();
   int leitura_esquerda = analogRead(esq_receptor);
   int leitura_direita = analogRead(dir_receptor);
   is_obstruido_esq = is_obstruido(leitura_esquerda, deteccao_maxima);
@@ -131,6 +132,7 @@ void loop() {
       Serial.println("entrou");
       entraram += 1;
       contou = true;
+      delay(300);
     }
     if (tempo_obstrucao_esq > tempo_obstrucao_dir)
     {
@@ -138,6 +140,7 @@ void loop() {
       Serial.println("saiu");
       sairam += 1;
       contou = true;
+      delay(300);
     }
   }
   if ((contou)) {
@@ -211,7 +214,6 @@ void loop() {
     }
     http.end();
   }
-  delay(100);
 }
 
 void printar_leituras()
