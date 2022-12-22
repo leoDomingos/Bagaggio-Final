@@ -16,8 +16,7 @@ TODOS:
 int esq_receptor = 35;
 int dir_receptor = 34;
 
-int entrou_led = 21;
-int saiu_led = 16;
+int led_ligado = 21;
 int led_alinhamento = 22;
 int led_banco_de_dados = 23;
 
@@ -45,20 +44,18 @@ int display[8] = {33, 32, 18, 5, 17, 25, 26, 19};
 const char* ssid     = "Fluxo";    // Nome do Wifi
 const char* password = "foconocliente";   // Senha
 
-const char* serverName = "https://database-bagaggio-flask.herokuapp.com/registro";
+const char* serverNameLoja = "https://database-bagaggio.onrender.com/registroLoja";
+const char* serverNameSensor = "https://database-bagaggio.onrender.com/registroSensor";
 
 int ultima_conexao = 0;
 
 
 void printar_leituras();
 bool is_obstruido(int leitura, int limite);
-void printar_obs();
 bool is_obs_valid(ulong obs);
-void printar_display(int numero);
-void escrever_segmento(int display[8], int valor[8]);
 void esperar_alinhamento();
-String to_json(int pessoas, String data);
-
+String to_json(int pessoas, String data, String id_loja);
+String registrar_loja(String id_loja);
 
 
 
@@ -66,8 +63,6 @@ void setup() {
   Serial.begin(115200);          //Inicialização do monitor serial
   pinMode(esq_receptor, INPUT);  //Definindo os pinos dos fotorreceptores
   pinMode(dir_receptor, INPUT); //
-  pinMode(entrou_led, OUTPUT);   // Definindo os pinos dos leds adicionais
-  pinMode(saiu_led, OUTPUT);    //
   pinMode(led_alinhamento, OUTPUT);
   pinMode(led_banco_de_dados, OUTPUT);
   for (int i = 0; i < 8; i++)
@@ -87,8 +82,6 @@ void setup() {
 
 
 void loop() {
-  digitalWrite(entrou_led, LOW);
-  digitalWrite(saiu_led, LOW);
   printar_leituras();
   int leitura_esquerda = analogRead(esq_receptor);
   int leitura_direita = analogRead(dir_receptor);
@@ -128,7 +121,6 @@ void loop() {
   {
     if (tempo_obstrucao_dir > tempo_obstrucao_esq)
     {
-      digitalWrite(entrou_led, HIGH);
       Serial.println("entrou");
       entraram += 1;
       contou = true;
@@ -136,7 +128,6 @@ void loop() {
     }
     if (tempo_obstrucao_esq > tempo_obstrucao_dir)
     {
-      digitalWrite(saiu_led, HIGH);
       Serial.println("saiu");
       sairam += 1;
       contou = true;
@@ -148,7 +139,6 @@ void loop() {
     tempo_obstrucao_dir = millis() - (tempo_maximo + 500);
     tempo_obstrucao_esq = millis() - (tempo_maximo + 500);
   }
-  printar_display(entraram);
   
   if(WiFi.status()== WL_CONNECTED){
     digitalWrite(led_banco_de_dados, HIGH);
@@ -156,7 +146,7 @@ void loop() {
     HTTPClient http;
 
     // Your Domain name with URL path or IP address with path
-    http.begin(serverName);
+    http.begin(serverNameLoja);
     
     http.addHeader("Content-Type", "application/json");
 
@@ -196,20 +186,22 @@ void loop() {
     strcat(data,timeHour);
     strcat(data,":00");
 
-    if (timeinfo.tm_hour - ultima_conexao >= 1)
+    if (timeinfo.tm_hour - ultima_conexao > 1)
     {
     // Prepare your HTTP POST request data
-    int httpResponseCode = http.POST(String(to_json(entraram, data)));
-    if (httpResponseCode>0) 
-    {
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpResponseCode);
-    }
-    else 
-    {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
-    }
+    delay(5000);
+    int httpResponseCodeLoja = http.POST(String(registrar_loja(String("alalal"))));
+    Serial.print("Loja: ");
+    Serial.println(httpResponseCodeLoja);
+    http.end();
+
+    http.begin(serverNameSensor);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCodeSensor = http.POST(String(to_json(entraram, data, String("alalal"))));
+    Serial.print("Sensor: ");
+    Serial.println(httpResponseCodeSensor);
+    http.end();
+
     ultima_conexao = timeinfo.tm_hour;
     }
     http.end();
@@ -242,14 +234,6 @@ bool is_obstruido(int leitura, int limite)
   }
 }
 
-void printar_obs()
-{
-  Serial.print("Última esq obs há: ");
-  Serial.println(millis()-tempo_obstrucao_esq);
-  Serial.print("Última dir obs há: ");
-  Serial.println(millis()-tempo_obstrucao_dir);
-}
-
 bool is_obs_valid(ulong obs)
 {
   if (millis() - obs < tempo_maximo)
@@ -259,73 +243,6 @@ bool is_obs_valid(ulong obs)
   else
   {
     return false;
-  }
-}
-
-void escrever_segmento(int display[8], int valor[8])
-{
-  for (int i = 0; i < 8; i++)
-  {
-    digitalWrite(display[i], valor[i]);
-  }
-}
-
-void printar_display(int numero)
-{
-  if (numero == 0)
-  {
-    int valor[8] = {1,1,1,1,1,1,0,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 1)
-  {
-    int valor[8] = {0,1,1,0,0,0,0,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 2)
-  {
-    int valor[8] = {1,1,0,1,1,0,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 3)
-  {
-    int valor[8] = {1,1,1,1,0,0,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 4)
-  {
-    int valor[8] = {0,1,1,0,0,1,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 5)
-  {
-    int valor[8] = {1,0,1,1,0,1,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 6)
-  {
-    int valor[8] = {1,0,1,1,1,1,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 7)
-  {
-    int valor[8] = {1,1,1,0,0,0,0,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 8)
-  {
-    int valor[8] = {1,1,1,1,1,1,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero == 9)
-  {
-    int valor[8] = {1,1,1,1,0,1,1,0};
-    escrever_segmento(display, valor);
-  }
-  if (numero > 9)
-  {
-    int valor[8] = {1,1,1,1,0,1,1,1};
-    escrever_segmento(display, valor);
   }
 }
 
@@ -360,9 +277,15 @@ void esperar_alinhamento()
   tempo_laser_dir = millis();
 }
 
-String to_json(int pessoas, String data)
+String to_json(int pessoas, String data, String id_loja)
 {
   // "{\"numero_pessoas\":\"pessoas\",\"datetime\":\"06/11/2022\"}"
-  String json = String('{') + String('"') + String("numero_pessoas") + String('"') + String(':') + String('"') + String(pessoas) + String('"') + String(",") + String('"') + String("datetime") + String('"') + String(':') + String('"') + String(data) + String('"') + String("}");
+  String json = String('{') + String('"') + String("codigo_loja") + String('"') + String(':') + String('"') + String(id_loja) + String('"') + String(",") + String('"') + String("numero_pessoas") + String('"') + String(':') + String('"') + String(pessoas) + String('"') + String(",") + String('"') + String("datetime") + String('"') + String(':') + String('"') + String(data) + String('"') + String("}");
+  return json;
+}
+
+String registrar_loja(String id_loja)
+{
+  String json = String('{') + String('"') + String("codigo_loja") + String('"') + String(':') + String('"') + String(id_loja) + String('"') + String("}");
   return json;
 }
