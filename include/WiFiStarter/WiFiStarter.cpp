@@ -13,20 +13,10 @@
 #define JSON_CONFIG_FILE "/test_config.json"
 bool shouldSaveConfig = false;
 
-char testString[50] = "test value";
-int testNumber = 1234;
-
-const char* serverNameLoja = "https://database-bagaggio.onrender.com/registroLoja";
-const char* serverNameSensor = "https://database-bagaggio.onrender.com/registroSensor";
-
 class WiFibro
 {
   public:
     WiFiManager wm;
-
-    String to_json(int pessoas, String data, String id_loja);
-    String registrar_loja(String id_loja);
-    String httpGETRequest(const char* serverName);
     void init_wifi();
   private:
     bool loadConfigFile();
@@ -66,23 +56,23 @@ void WiFibro::init_wifi()
   // Custom elements
  
   // Text box (String) - 50 characters maximum
-  WiFiManagerParameter custom_text_box("key_text", "Enter your string here", testString, 50);
+  // WiFiManagerParameter custom_text_box("key_text", "Enter your string here", testString, 50);
   
   // Need to convert numerical input to string to display the default value.
-  char convertedValue[6];
-  sprintf(convertedValue, "%d", testNumber); 
+  // char convertedValue[6];
+  // sprintf(convertedValue, "%d", testNumber); 
   
   // Text box (Number) - 7 characters maximum
-  WiFiManagerParameter custom_text_box_num("key_num", "Enter your number here", convertedValue, 7); 
+  // WiFiManagerParameter custom_text_box_num("key_num", "Enter your number here", convertedValue, 7); 
  
   // Add all defined parameters
-  WiFibro::wm.addParameter(&custom_text_box);
-  WiFibro::wm.addParameter(&custom_text_box_num);
+  // WiFibro::wm.addParameter(&custom_text_box);
+  // WiFibro::wm.addParameter(&custom_text_box_num);
  
   if (forceConfig)
     // Run if we need a configuration
   {
-    if (!WiFibro::wm.startConfigPortal("NEWTEST_AP", "password"))
+    if (!WiFibro::wm.startConfigPortal("Sensor de Porta", "1234"))
     {
       Serial.println("failed to connect and hit timeout");
       delay(3000);
@@ -93,7 +83,7 @@ void WiFibro::init_wifi()
   }
   else
   {
-    if (!WiFibro::wm.autoConnect("NEWTEST_AP", "password"))
+    if (!WiFibro::wm.autoConnect("Sensor de Porta", "1234"))
     {
       Serial.println("failed to connect and hit timeout");
       delay(3000);
@@ -113,14 +103,14 @@ void WiFibro::init_wifi()
   // Lets deal with the user config values
  
   // Copy the string value
-  strncpy(testString, custom_text_box.getValue(), sizeof(testString));
-  Serial.print("testString: ");
-  Serial.println(testString);
+  // strncpy(testString, custom_text_box.getValue(), sizeof(testString));
+  // Serial.print("testString: ");
+  // Serial.println(testString);
  
   //Convert the number value
-  testNumber = atoi(custom_text_box_num.getValue());
-  Serial.print("testNumber: ");
-  Serial.println(testNumber);
+  // testNumber = atoi(custom_text_box_num.getValue());
+  // Serial.print("testNumber: ");
+  // Serial.println(testNumber);
  
  
   // Save the custom parameters to FS
@@ -130,49 +120,6 @@ void WiFibro::init_wifi()
   }
 }
 
-String WiFibro::to_json(int pessoas, String data, String id_loja)
-{
-  // "{\"numero_pessoas\":\"pessoas\",\"datetime\":\"06/11/2022\"}"
-  String json = String('{') + String('"') + String("codigo_loja") + String('"') + String(':') + String('"') + String(id_loja) + String('"') + String(",") + String('"') + String("numero_pessoas") + String('"') + String(':') + String('"') + String(pessoas) + String('"') + String(",") + String('"') + String("datetime") + String('"') + String(':') + String('"') + String(data) + String('"') + String("}");
-  return json;
-}
-
-String WiFibro::registrar_loja(String id_loja)
-{
-  String json = String('{') + String('"') + String("codigo_loja") + String('"') + String(':') + String('"') + String(id_loja) + String('"') + String("}");
-  return json;
-}
-
-String WiFibro::httpGETRequest(const char* serverName) {
-  WiFiClient client;
-  HTTPClient http;
-    
-  // Your Domain name with URL path or IP address with path
-  http.begin(serverName);
-  
-  // If you need Node-RED/server authentication, insert user and password below
-  //http.setAuthorization("REPLACE_WITH_SERVER_USERNAME", "REPLACE_WITH_SERVER_PASSWORD");
-  
-  // Send HTTP POST request
-  int httpResponseCode = http.GET();
-  
-  String payload = "{}"; 
-  
-  if (httpResponseCode>0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    payload = http.getString();
-  }
-  else {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
-  }
-  // Free resources
-  http.end();
-
-  return payload;
-}
-
 void WiFibro::saveConfigFile()
 // Save Config in JSON format
 {
@@ -180,8 +127,8 @@ void WiFibro::saveConfigFile()
   
   // Create a JSON document
   StaticJsonDocument<512> json;
-  json["testString"] = testString;
-  json["testNumber"] = testNumber;
+  // json["testString"] = testString;
+  // json["testNumber"] = testNumber;
  
   // Open config file
   File configFile = SPIFFS.open(JSON_CONFIG_FILE, "w");
@@ -230,8 +177,8 @@ bool WiFibro::loadConfigFile()
         {
           Serial.println("Parsing JSON");
  
-          strcpy(testString, json["testString"]);
-          testNumber = json["testNumber"].as<int>();
+          // strcpy(testString, json["testString"]);
+          // testNumber = json["testNumber"].as<int>();
  
           return true;
         }
