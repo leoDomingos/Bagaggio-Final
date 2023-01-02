@@ -120,6 +120,8 @@ struct tm Banco_de_Dados::getDate()
   //   Serial.println("Failed to obtain time");
   //   return 0;
   // }
+  Serial.println("Minuto, dentro da funcao: ");
+  Serial.println(timeinfo.tm_min);
   return timeinfo;
 }
 
@@ -175,8 +177,8 @@ int Banco_de_Dados::saveCount(int pessoas, int hora_do_registro)
     Serial.println("failed to init EEPROM");
     return -1;
   }
-  EEPROM.write(pessoas, EEPROM_COUNT_ADDRESS);
-  EEPROM.write(hora_do_registro, EEPROM_HOUR_ADDRESS);
+  EEPROM.write(EEPROM_COUNT_ADDRESS, pessoas);
+  EEPROM.write(EEPROM_HOUR_ADDRESS, hora_do_registro);
   EEPROM.commit();
   return 1;
 }
@@ -190,12 +192,17 @@ int Banco_de_Dados::readSaveCount(int hora_atual)
   }
   int pessoas = EEPROM.read(EEPROM_COUNT_ADDRESS);
   int ultimo_registro = EEPROM.read(EEPROM_HOUR_ADDRESS);
+  Serial.print("Ultimo registro de contagem: ");
+  Serial.println(ultimo_registro);
+  Serial.println(abs(hora_atual - ultimo_registro));
   if (abs(hora_atual - ultimo_registro) >= SAVE_INTERVALO_MAX)
   {
+    Serial.println("Jogando valor salvo fora; foi há tempo demais");
     return 0;
   }
   else
   {
+    Serial.println("Recuperando contagem antiga");
     return pessoas;
   }
 }

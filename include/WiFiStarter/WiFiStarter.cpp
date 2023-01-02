@@ -13,11 +13,15 @@
 #define JSON_CONFIG_FILE "/test_config.json"
 bool shouldSaveConfig = false;
 
+WiFiManager wm;
+WiFiManagerParameter custom_text_box("key_text", "Pausar (s/n)?", "n", 1);
+
 class WiFibro
 {
   public:
-    WiFiManager wm;
     void init_wifi();
+    String inputDoUsuario();
+    void processar_pagina_html();
   private:
     bool loadConfigFile();
     void saveConfigFile();
@@ -43,20 +47,22 @@ void WiFibro::init_wifi()
   // Setup Serial monitor
   Serial.begin(115200);
   delay(10);
- 
+
+  wm.setConfigPortalBlocking(false);
+
   // Reset settings (only for development)
   // wm.resetSettings();
  
   // Set config save notify callback
-  WiFibro::wm.setSaveConfigCallback(WiFibro::saveConfigCallback);
+  wm.setSaveConfigCallback(WiFibro::saveConfigCallback);
  
   // Set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
-  WiFibro::wm.setAPCallback(WiFibro::configModeCallback);
+  wm.setAPCallback(WiFibro::configModeCallback);
  
   // Custom elements
  
   // Text box (String) - 50 characters maximum
-  // WiFiManagerParameter custom_text_box("key_text", "Enter your string here", testString, 50);
+  // WiFiManagerParameter custom_text_box("key_text", "Pausar (s/n)?", "n", 1);
   
   // Need to convert numerical input to string to display the default value.
   // char convertedValue[6];
@@ -66,31 +72,15 @@ void WiFibro::init_wifi()
   // WiFiManagerParameter custom_text_box_num("key_num", "Enter your number here", convertedValue, 7); 
  
   // Add all defined parameters
-  // WiFibro::wm.addParameter(&custom_text_box);
+  wm.addParameter(&custom_text_box);
   // WiFibro::wm.addParameter(&custom_text_box_num);
  
-  if (forceConfig)
-    // Run if we need a configuration
+  if(wm.autoConnect("Sensor de Porta", "123456789"))
   {
-    if (!WiFibro::wm.startConfigPortal("Sensor de Porta", "1234"))
-    {
-      Serial.println("failed to connect and hit timeout");
-      delay(3000);
-      //reset and try again, or maybe put it to deep sleep
-      ESP.restart();
-      delay(5000);
-    }
+      Serial.println("connected...yeey :)");
   }
-  else
-  {
-    if (!WiFibro::wm.autoConnect("Sensor de Porta", "1234"))
-    {
-      Serial.println("failed to connect and hit timeout");
-      delay(3000);
-      // if we still have not connected restart and try all over again
-      ESP.restart();
-      delay(5000);
-    }
+  else {
+      Serial.println("Configportal running");
   }
  
   // If we get here, we are connected to the WiFi
@@ -99,7 +89,7 @@ void WiFibro::init_wifi()
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
- 
+  wm.startConfigPortal("Sensor de Porta", "123456789");
   // Lets deal with the user config values
  
   // Copy the string value
@@ -114,10 +104,20 @@ void WiFibro::init_wifi()
  
  
   // Save the custom parameters to FS
-  if (shouldSaveConfig)
-  {
-    saveConfigFile();
-  }
+  // if (shouldSaveConfig)
+  // {
+  //   saveConfigFile();
+  // }
+}
+
+String WiFibro::inputDoUsuario()
+{
+  return custom_text_box.getValue();
+}
+
+void WiFibro::processar_pagina_html()
+{
+  wm.process();
 }
 
 void WiFibro::saveConfigFile()
