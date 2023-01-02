@@ -19,14 +19,10 @@ TODOS:
 #include "./bancoDeDados/bancoDeDados.cpp"
 #include "./WiFiStarter/WiFiStarter.cpp"
 
-int ultima_conexao_hora = 0;
-int ultima_conexao_min = 0;
-int ultimo_save_contagem_min = 0;
-String registro_loja;
+int ultima_conexao_hora;
+int ultimo_save_contagem_min;
+String registro_loja = "defin5";
 struct tm timeinfo;
-bool ja_mandou = false;
-bool ja_salvou = false;
-
 
 #define INTERVALO_REGISTROS_HORA 1
 #define INTERVALO_SALVAR_CONTAGEM_MIN 2
@@ -54,47 +50,68 @@ void setup() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   // wifi_config_t conf;
   // registro_loja = banco_de_dados.getRegistroLoja((char*)conf.sta.ssid, (char*)conf.sta.password);
-  // int registro_loja_sucesso = banco_de_dados.registrar_loja(registro_loja); // Lidar com erro
-  detector.entraram = banco_de_dados.readSaveCount(timeinfo.tm_hour); // Lidar com -1
-  ultimo_save_contagem_min = timeinfo.tm_min;
-  ultima_conexao_hora = timeinfo.tm_hour;
+  banco_de_dados.registrar_loja(registro_loja); // Lidar com erro
+  getLocalTime(&timeinfo);
+  detector.entraram = banco_de_dados.readSaveCount(int(timeinfo.tm_hour)); // Lidar com -1
+  if (detector.entraram != 0) 
+  {
+    Serial.print("Contagem de pessoas recuperada: ");
+    Serial.println(detector.entraram);
+    delay(1000);
+  }
+  ultimo_save_contagem_min = int(timeinfo.tm_min);
+  ultima_conexao_hora = int(timeinfo.tm_hour);
 }
 
 void loop() {
   digitalWrite(detector.led_on, HIGH);
   WiFiStarter.processar_pagina_html();
+  
   while (WiFiStarter.inputDoUsuario() == "s")
   {
     luzes_de_espera();
   }
 
   detector.observar();
+  digitalWrite(detector.led_alinhamento, HIGH);
   getLocalTime(&timeinfo);
   if(WiFi.status()== WL_CONNECTED){
     digitalWrite(banco_de_dados.led_banco_de_dados, HIGH);
 
-    if (abs(timeinfo.tm_min - ultimo_save_contagem_min) >= INTERVALO_SALVAR_CONTAGEM_MIN)
+    if (abs(int(timeinfo.tm_min) - ultimo_save_contagem_min) >= INTERVALO_SALVAR_CONTAGEM_MIN)
     {
       Serial.println("Salvando contagem na memória.");
-      Serial.print("Minuto: ");
-      Serial.println(timeinfo.tm_min);
-      Serial.print("ultimo_save: ");
-      Serial.println(ultimo_save_contagem_min);
-      banco_de_dados.saveCount(detector.entraram, timeinfo.tm_hour);
-      ultimo_save_contagem_min = timeinfo.tm_min;
+      banco_de_dados.saveCount(detector.entraram, int(timeinfo.tm_hour));
+      ultimo_save_contagem_min = int(timeinfo.tm_min);
+      delay(500);
     }
     
-    if (abs(timeinfo.tm_hour - ultima_conexao_hora) >= INTERVALO_REGISTROS_HORA)
+    if (abs(int(timeinfo.tm_hour) - ultima_conexao_hora) >= INTERVALO_REGISTROS_HORA)
     {
       Serial.println("Mandando leituras para o banco de dados.");
-      Serial.print("Hora: ");
-      Serial.println(timeinfo.tm_hour);
-      Serial.print("ultima_conexao: ");
-      Serial.println(ultima_conexao_hora);
-      // int sensor_leituras_sucesso = banco_de_dados.registrar_leituras(detector.entraram, banco_de_dados.getFormatedDate(timeinfo), registro_loja);
+      Serial.println(abs(int(timeinfo.tm_hour) - ultima_conexao_hora));
+      char data[21];
+      char timeHour[3];
+      strftime(timeHour,3, "%H", &timeinfo);
+      char timeMonth[10];
+      strftime(timeMonth,10, "%B", &timeinfo);
+      char timeDay[3];
+      strftime(timeDay,3, "%d", &timeinfo);
+      char timeYear[5];
+      strftime(timeYear,5, "%Y", &timeinfo);
+      strcat(data, timeDay);
+      strcat(data,"/");
+      strcat(data,timeMonth);
+      strcat(data,"/");
+      strcat(data,timeYear);
+      strcat(data," ");
+      strcat(data,timeHour);
+      strcat(data,":00");
+      int sensor_leituras_sucesso = banco_de_dados.registrar_leituras(detector.entraram, data, registro_loja);
       detector.entraram = 0;
-      banco_de_dados.saveCount(detector.entraram, timeinfo.tm_hour);
-      ultima_conexao_hora = timeinfo.tm_hour;
+      banco_de_dados.saveCount(detector.entraram, int(timeinfo.tm_hour));
+      ultima_conexao_hora = int(timeinfo.tm_hour);
+      delay(500);
     }
   }
   else

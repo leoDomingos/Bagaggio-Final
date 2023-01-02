@@ -5,7 +5,9 @@
 #include <HTTPClient.h>
 #include "time.h"
 
-int deteccao_maxima = 700;         // Valor máximo de leitura dos fotorreceptores antes de ser considerado como obstruído.
+int deteccao_maxima = 2000;         // Valor máximo de leitura dos fotorreceptores antes de ser considerado como obstruído.
+int deteccao_maxima_esq = 2000;
+int deteccao_maxima_dir = 500;
 int tempo_maximo = 2000;            // Tempo máximo que uma obstrução na esquerda seguida de uma na direita vai contar como alguém passando.
 int tempo_limite_alinhamento = 20 * 1000; // Limite de tempo antes de os laser serem considerados fora de alinhamento.
 bool is_obstruido_esq = false;      // Essas variáveis vão dizer se o sensor está obstruído ou não.
@@ -46,8 +48,8 @@ void Detector::observar()
     Detector::printar_leituras();
     int leitura_esquerda = analogRead(Detector::esq_receptor);
     int leitura_direita = analogRead(Detector::dir_receptor);
-    is_obstruido_esq = Detector::is_obstruido(leitura_esquerda, deteccao_maxima);
-    is_obstruido_dir = Detector::is_obstruido(leitura_direita, deteccao_maxima);
+    is_obstruido_esq = Detector::is_obstruido(leitura_esquerda, deteccao_maxima_esq);
+    is_obstruido_dir = Detector::is_obstruido(leitura_direita, deteccao_maxima_dir);
     if (is_obstruido_esq) // Se está obstruído
     {
         //Serial.println("esq obs");
@@ -157,14 +159,14 @@ void Detector::esperar_alinhamento()
   bool alinhado = false;
   int leitura_esquerda = analogRead(esq_receptor);
   int leitura_direita = analogRead(dir_receptor);
-  is_obstruido_esq = is_obstruido(leitura_esquerda, deteccao_maxima);
-  is_obstruido_dir = is_obstruido(leitura_direita, deteccao_maxima);
+  is_obstruido_esq = is_obstruido(leitura_esquerda, deteccao_maxima_esq);
+  is_obstruido_dir = is_obstruido(leitura_direita, deteccao_maxima_dir);
   while (!alinhado)
   {
     int leitura_esquerda = analogRead(esq_receptor);
     int leitura_direita = analogRead(dir_receptor);
-    is_obstruido_esq = is_obstruido(leitura_esquerda, deteccao_maxima);
-    is_obstruido_dir = is_obstruido(leitura_direita, deteccao_maxima);
+    is_obstruido_esq = is_obstruido(leitura_esquerda, deteccao_maxima_esq);
+    is_obstruido_dir = is_obstruido(leitura_direita, deteccao_maxima_dir);
     digitalWrite(led_alinhamento, LOW);
     if (is_obstruido_esq) // Se está obstruído
     {

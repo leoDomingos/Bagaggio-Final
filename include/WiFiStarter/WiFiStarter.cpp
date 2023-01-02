@@ -34,12 +34,12 @@ void WiFibro::init_wifi()
   // Change to true when testing to force configuration every time we run
   bool forceConfig = false;
  
-  bool spiffsSetup = WiFibro::loadConfigFile();
-  if (!spiffsSetup)
-  {
-    Serial.println(F("Forcing config mode as there is no saved config"));
-    forceConfig = true;
-  }
+  // bool spiffsSetup = WiFibro::loadConfigFile();
+  // if (!spiffsSetup)
+  // {
+  //   Serial.println(F("Forcing config mode as there is no saved config"));
+  //   forceConfig = true;
+  // }
  
   // Explicitly set WiFi mode
   WiFi.mode(WIFI_STA);
@@ -49,7 +49,7 @@ void WiFibro::init_wifi()
   delay(10);
 
   wm.setConfigPortalBlocking(false);
-
+  // wm.setSTAStaticIPConfig(IPAddress(192,168,0,99), IPAddress(192,168,0,1), IPAddress(255,255,255,0)); // optional DNS 4th argument
   // Reset settings (only for development)
   // wm.resetSettings();
  

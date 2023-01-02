@@ -7,8 +7,8 @@
 #include "time.h"
 #include "EEPROM.h"
 
-const char* serverNameLoja = "https://database-bagaggio.onrender.com/registroLoja";
-const char* serverNameSensor = "https://database-bagaggio.onrender.com/registroSensor";
+const char* serverNameLoja = "https://database-bagaggio-teste.onrender.com/registroLoja";
+const char* serverNameSensor = "https://database-bagaggio-teste.onrender.com/registroSensor";
 
 #define EEPROM_SIZE 8
 #define EEPROM_COUNT_ADDRESS 0
@@ -33,7 +33,6 @@ int Banco_de_Dados::registrar_leituras(int pessoas, String data, String id_loja)
 {
   WiFiClient client;
   HTTPClient http;
-  // "{\"numero_pessoas\":\"pessoas\",\"datetime\":\"06/11/2022\"}"
   http.begin(serverNameSensor);
   http.addHeader("Content-Type", "application/json");
   String sensor_json = String('{') + String('"') + String("codigo_loja") + String('"') + String(':') + String('"') + String(id_loja) + String('"') + String(",") + String('"') + String("numero_pessoas") + String('"') + String(':') + String('"') + String(pessoas) + String('"') + String(",") + String('"') + String("datetime") + String('"') + String(':') + String('"') + String(data) + String('"') + String("}");
@@ -56,7 +55,7 @@ int Banco_de_Dados::registrar_loja(String id_loja)
   WiFiClient client;
   HTTPClient http;
   String loja_json = String('{') + String('"') + String("codigo_loja") + String('"') + String(':') + String('"') + String(id_loja) + String('"') + String("}");
-  http.begin(serverNameLoja);
+  http.begin("https://database-bagaggio-teste.onrender.com/registroLoja");
   http.addHeader("Content-Type", "application/json");
   int loja_resposta = http.POST(String(loja_json));
   if (loja_resposta>0) 
@@ -67,6 +66,7 @@ int Banco_de_Dados::registrar_loja(String id_loja)
   {
     Serial.print("Error code (loja): ");
     Serial.println(loja_resposta);
+    Serial.println(loja_json);
     return 0;
   }
   http.end();
@@ -120,8 +120,6 @@ struct tm Banco_de_Dados::getDate()
   //   Serial.println("Failed to obtain time");
   //   return 0;
   // }
-  Serial.println("Minuto, dentro da funcao: ");
-  Serial.println(timeinfo.tm_min);
   return timeinfo;
 }
 
@@ -147,7 +145,7 @@ String Banco_de_Dados::getFormatedDate(struct tm timeinfo)
   strcat(data," ");
   strcat(data,timeHour);
   strcat(data,":00");
-  return data;
+  return String(data);
 }
 
 // String Banco_de_Dados::getRegistroLoja(char* ssid, char* password)
@@ -192,12 +190,10 @@ int Banco_de_Dados::readSaveCount(int hora_atual)
   }
   int pessoas = EEPROM.read(EEPROM_COUNT_ADDRESS);
   int ultimo_registro = EEPROM.read(EEPROM_HOUR_ADDRESS);
-  Serial.print("Ultimo registro de contagem: ");
-  Serial.println(ultimo_registro);
-  Serial.println(abs(hora_atual - ultimo_registro));
   if (abs(hora_atual - ultimo_registro) >= SAVE_INTERVALO_MAX)
   {
     Serial.println("Jogando valor salvo fora; foi há tempo demais");
+    Serial.println(abs(hora_atual - ultimo_registro));
     return 0;
   }
   else
