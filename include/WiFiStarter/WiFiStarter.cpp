@@ -22,6 +22,7 @@ class WiFibro
     void init_wifi();
     String inputDoUsuario();
     void processar_pagina_html();
+    void init_portal();
   private:
     bool loadConfigFile();
     void saveConfigFile();
@@ -108,6 +109,14 @@ void WiFibro::init_wifi()
   // {
   //   saveConfigFile();
   // }
+}
+
+void WiFibro::init_portal()
+{
+  if (!wm.getConfigPortalActive())
+  {
+    wm.startConfigPortal("Sensor de Porta", "123456789");
+  }
 }
 
 String WiFibro::inputDoUsuario()
