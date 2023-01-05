@@ -283,28 +283,6 @@ void luzes_de_espera()
   delay(800);
 }
 
-void formatar_data_recente()
-{
-  char timeHour[3];
-  strftime(timeHour,3, "%H", &timeinfo);
-  char timeMonth[10];
-  strftime(timeMonth,10, "%B", &timeinfo);
-  char timeDay[3];
-  strftime(timeDay,3, "%d", &timeinfo);
-  char timeYear[5];
-  strftime(timeYear,5, "%Y", &timeinfo);
-  // Atualizando a variável data
-  strcat(data, timeDay);
-  strcat(data,"/");
-  strcat(data,timeMonth);
-  strcat(data,"/");
-  strcat(data,timeYear);
-  strcat(data," ");
-  strcat(data,timeHour);
-  String minuto_str = ":" + String(timeinfo.tm_min);
-  strcat(data,minuto_str.c_str());
-}
-
 void atualizar_e_formatar_data_antiga(int minuto, int hora)
 {
   if ((minuto)%60!=0) {ajustou_hora = false;}
