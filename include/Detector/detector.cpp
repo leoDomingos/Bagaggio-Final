@@ -45,7 +45,7 @@ class Detector
 
 void Detector::observar()
 {
-    Detector::printar_leituras();
+    // Detector::printar_leituras();
     int leitura_esquerda = analogRead(Detector::esq_receptor);
     int leitura_direita = analogRead(Detector::dir_receptor);
     is_obstruido_esq = Detector::is_obstruido(leitura_esquerda, deteccao_maxima_esq);

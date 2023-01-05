@@ -31,8 +31,12 @@ int ultima_conexao_hora;
 unsigned long ultima_conexao_millis;
 int ultimo_save_contagem_min;
 int ultimo_get_time_min = 0;  // há quanto tempo atualizamos a data&hora
-int hora;     // Hora e minuto, de acordo com a última vez que atualizamos data&hora
-int minuto;   //
+int hora_colhida;     // Hora e minuto, de acordo com a última vez que atualizamos data&hora
+int minuto_colhido;   //
+int hora_atual;
+int minuto_atual;
+int ajuste_hora = 0;
+bool ajustou_hora = false;
 unsigned long ultima_atualizacao_datahora_millis;
 String registro_loja = "defin5";
 struct tm timeinfo;
@@ -44,7 +48,7 @@ char data[21];                // data formatada
 #define INTERVALO_GET_TIME_MIN 3        // A cada X min atualizaremos a data&hora
 #define INTERVALO_REGISTROS_HORA 1
 #define INTERVALO_SALVAR_CONTAGEM_MIN 2
-#define TEMPO_PARA_USAR_BACKUP_MIN 10
+#define TEMPO_PARA_USAR_BACKUP_MIN 60
 #define DOC_SIZE 5000
 
 const char* ntpServer = "pool.ntp.org"; // Servidor que vai nos fornecer a data
@@ -71,12 +75,21 @@ void setup() {
   
   if(WiFi.status() == WL_CONNECTED)
   {
-  getLocalTime(&timeinfo);
-  pegou_data = true;
-  banco_de_dados.registrar_loja(registro_loja);
-  registrou_loja = true;
-  ultimo_save_contagem_min = int(timeinfo.tm_min);
-  ultima_conexao_hora = int(timeinfo.tm_hour);
+
+    if(getLocalTime(&timeinfo))
+    {
+      Serial.println("Data obtida (de primeira)");
+      pegou_data = true;
+      minuto_colhido = timeinfo.tm_min;
+      hora_colhida = timeinfo.tm_hour;
+    }
+
+    if(banco_de_dados.registrar_loja(registro_loja))
+    {
+      Serial.println("Registro de loja feito com êxito (de primeira)");
+      registrou_loja = true;
+    }
+
   }
 
   if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)){
@@ -105,7 +118,7 @@ void loop()
   
   WiFiStarter.init_portal();
   WiFiStarter.processar_pagina_html();
-  
+
   if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) // Iniciando a memória
   {
     Serial.println("LittleFS Mount Failed");
@@ -123,42 +136,47 @@ void loop()
   {
     if (!pegou_data) // garantindo que ele pegue a data&hora pela primeira vez (dada conexão com wifi)
     {
-      getLocalTime(&timeinfo);
-      pegou_data = true;
+      if(getLocalTime(&timeinfo))
+      {
+        Serial.println("Data obtida com êxito.");
+        pegou_data = true;
+        minuto_colhido = timeinfo.tm_min;
+        hora_colhida = timeinfo.tm_hour;
+      }
     }
+    if (!registrou_loja)
+    {
+      if(banco_de_dados.registrar_loja(registro_loja))
+        {
+          Serial.println("Registro de loja feito com êxito.");
+          registrou_loja = true;
+        }
+    }
+
     digitalWrite(banco_de_dados.led_banco_de_dados, HIGH);
+    
     if (pegou_data)
     {
-      if (abs(timeinfo.tm_min - ultimo_get_time_min) >= INTERVALO_GET_TIME_MIN) // Pegando nova data após X seg
+      int minutos_a_adicionar = int(((millis() - ultima_atualizacao_datahora_millis) / (1000*60)) % 60);
+      int horas_a_adicionar   = int(((millis() - ultima_atualizacao_datahora_millis) / (1000*60*60)) % 24);
+      atualizar_e_formatar_data_antiga(minuto_colhido+minutos_a_adicionar,hora_colhida+horas_a_adicionar);
+      if (millis()/(60*1000) <= TEMPO_PARA_USAR_BACKUP_MIN && !usou_backup) // Se tiver conexão em até X minutos após ligar, tentamos incluir o backup também
       {
-        Serial.println("Pegando nova data");
-        getLocalTime(&timeinfo);
-        ultimo_get_time_min = timeinfo.tm_min;
-        ultima_atualizacao_datahora_millis = millis();
-        hora = timeinfo.tm_hour;
-        minuto = timeinfo.tm_min;
-        formatar_data_recente();
-      }
-      
-      if (millis() <= TEMPO_PARA_USAR_BACKUP_MIN * 1000 * 60 && !usou_backup) // Se tiver conexão em até X minutos após ligar, tentamos incluir o backup também
-      {
-        // readSaveCount() também precisa da hora atual para ver se o backup é válido (e não da hora passada)
+        // readSaveCount() também precisa da hora atual para ver se o backup é válido (e não há mais de 1h)
         // por isso precisamos garantir que temos conexão, e que já pegamos a data&hora antes.
         int antes = detector.entraram;
-        detector.entraram += banco_de_dados.readSaveCount(int(timeinfo.tm_hour));
-        Serial.print("Contagem de pessoas recuperada: ");
+        detector.entraram += banco_de_dados.readSaveCount(hora_atual);
+        Serial.print("Temos WiFi. Contagem de pessoas recuperada pelo backup: ");
         Serial.println(detector.entraram - antes);
-        banco_de_dados.saveCount(0, timeinfo.tm_hour); // Zerando o backup que tínhamos
+        banco_de_dados.saveCount(0, hora_atual); // Zerando o backup que tínhamos
         usou_backup = true; // Não precisaremos mais do backup, já o usamos
-        delay(1000);
       }
       
-      if (abs(timeinfo.tm_min - ultimo_save_contagem_min) >= INTERVALO_SALVAR_CONTAGEM_MIN) // Salvando contagem na memória após X min
+      if (abs(minuto_atual - ultimo_save_contagem_min) >= INTERVALO_SALVAR_CONTAGEM_MIN) // Salvando contagem na memória após X min
       {
         Serial.println("Salvando contagem na memória.");
-        banco_de_dados.saveCount(detector.entraram, timeinfo.tm_hour);
-        ultimo_save_contagem_min = timeinfo.tm_min;
-        delay(500);
+        banco_de_dados.saveCount(detector.entraram, hora_atual);
+        ultimo_save_contagem_min = minuto_atual;
       }
 
     }
@@ -167,21 +185,26 @@ void loop()
   {
   digitalWrite(banco_de_dados.led_banco_de_dados, LOW);
   }
-  if (abs(ultimo_get_time_min - INTERVALO_GET_TIME_MIN) <= INTERVALO_GET_TIME_MIN * 2 && pegou_data) // Se a data&hora está relativamente atualizada
+  if (pegou_data) // Se a data&hora está disponível
   {
     // Checamos se está na hora de salvar a contagem na memória
-    if (abs(timeinfo.tm_hour - ultima_conexao_hora) >= INTERVALO_REGISTROS_HORA || (millis() > INTERVALO_REGISTROS_HORA * 60 * 60 * 1000 && millis() - ultima_conexao_millis >= INTERVALO_REGISTROS_HORA * 60 * 60 * 1000)) // Mandando leituras para a memória após X horas
+    if (abs(minuto_colhido-minuto_atual) == 5) // Intervalo de 5 em 5 min!
     {
-      // Se sim, a guardaremos.
-      if(WiFi.status() == WL_CONNECTED) {getLocalTime(&timeinfo);formatar_data_recente();} // Mas antes, vamos tentar ter a data&hora mais atualizada possível
       // Só falta evitar overflow
+      Serial.println("Tentando salvar tomada de dados na memória, para mandar depois.");
       DynamicJsonDocument arquivo_dos_saves = banco_de_dados.readFile(LittleFS, JSON_SAVE_FILE);
       if (arquivo_dos_saves.memoryUsage() + DOC_SIZE*0.2 < DOC_SIZE)
       {
-        if (arquivo_dos_saves.memoryUsage() + DOC_SIZE*0.1 < DOC_SIZE); // Acender algum led depois
+        if (arquivo_dos_saves.memoryUsage() + DOC_SIZE*0.1 < DOC_SIZE)
+        {
+          Serial.print("Overflow iminente! Espaço ocupado: ");
+          Serial.println(arquivo_dos_saves.memoryUsage());
+          // Acender algum led depois
+        }
         String contagem_string = String(detector.entraram);
         banco_de_dados.addCredentials(registro_loja.c_str(), data, contagem_string.c_str());
         detector.entraram = 0;
+        Serial.println("Salvamento concluído.");
       }
       else
       {
@@ -189,42 +212,47 @@ void loop()
       }
     }
   }
-  
-  else if (pegou_data)// Se faz tempo que temos conexão com wifi, tentaremos guardar os dados mesmo assim. Contudo, precisamos ter pego, em algum momento, a data.
-  {
-    int minutos_a_adicionar = int(((millis() - ultima_atualizacao_datahora_millis) / (1000*60)) % 60);
-    int horas_a_adicionar   = int(((millis() - ultima_atualizacao_datahora_millis) / (1000*60*60)) % 24);
-    hora += horas_a_adicionar;
-    minuto += minutos_a_adicionar;
-    atualizar_e_formatar_data_antiga(minuto, hora);
-    DynamicJsonDocument arquivo_dos_saves = banco_de_dados.readFile(LittleFS, JSON_SAVE_FILE);
-    if (arquivo_dos_saves.memoryUsage() + 200 < DOC_SIZE)
-    {
-      String contagem_string = String(detector.entraram);
-      banco_de_dados.addCredentials(registro_loja.c_str(), data, contagem_string.c_str());
-      detector.entraram = 0;
-    }
-    else
-    {
-      Serial.println("Alerta de overflow!! Não vamos mais adicionar dados.");
-    }
-  }
 
   if(WiFi.status()== WL_CONNECTED) // Se temos conexão, madamos para o banco de dados as coisas da memória
   {
     Serial.println("Mandando leituras para o banco de dados.");
     DynamicJsonDocument arquivo_dos_saves = banco_de_dados.readFile(LittleFS, JSON_SAVE_FILE);
-    while (!arquivo_dos_saves.isNull() && WiFi.status()== WL_CONNECTED)
+    bool abortar_mandar_ao_db = false;
+    while (!arquivo_dos_saves.isNull() && WiFi.status() == WL_CONNECTED && !abortar_mandar_ao_db)
     {
       arquivo_dos_saves = banco_de_dados.readFile(LittleFS, JSON_SAVE_FILE);
-      int pessoas_a_mandar;
+      String pessoas_a_mandar;
       String registro_loja_a_mandar;
       String data_a_mandar;
-      banco_de_dados.grabFirst(&registro_loja, &data_a_mandar, &registro_loja_a_mandar);
-      int sensor_leituras_sucesso = banco_de_dados.registrar_leituras(pessoas_a_mandar, data_a_mandar, registro_loja_a_mandar);
-      arquivo_dos_saves.remove(0);
-      arquivo_dos_saves.garbageCollect();
-      banco_de_dados.writeFile(LittleFS, JSON_SAVE_FILE, arquivo_dos_saves);
+      banco_de_dados.grabFirst(&registro_loja_a_mandar, &data_a_mandar, &pessoas_a_mandar);
+      Serial.println("Mandando a tomada de dados:");
+      Serial.print("codigo_loja=");
+      Serial.println(registro_loja_a_mandar);
+      Serial.print("data=");
+      Serial.println(data_a_mandar);
+      Serial.print("contagem=");
+      Serial.println(pessoas_a_mandar);
+      ulong inicio_da_tentativa_de_mandar = millis();
+      while (!banco_de_dados.registrar_leituras(pessoas_a_mandar, data_a_mandar, registro_loja_a_mandar) && WiFi.status() == WL_CONNECTED) 
+      {
+        delay(100);
+        if ((millis()-inicio_da_tentativa_de_mandar) > 3000)
+        {
+          abortar_mandar_ao_db = true;
+          Serial.println("Demorou demais para mandar ao db. Abortando.");
+          break;
+        }
+      }
+      if (!abortar_mandar_ao_db) // Se realmente mandamos, vamos atualizar a memória
+      {
+        Serial.println("Tomada de dados enviada com sucesso. Removendo-a da memória...");
+        arquivo_dos_saves.remove(0);
+        arquivo_dos_saves.garbageCollect();
+        banco_de_dados.writeFile(LittleFS, JSON_SAVE_FILE, arquivo_dos_saves);
+        Serial.print("Novo espaço ocupado na memória: ");
+        Serial.println(arquivo_dos_saves.memoryUsage());
+      }
+      abortar_mandar_ao_db = false;
     }
   }
 
@@ -279,6 +307,17 @@ void formatar_data_recente()
 
 void atualizar_e_formatar_data_antiga(int minuto, int hora)
 {
+  if ((minuto)%60!=0) {ajustou_hora = false;}
+  if ((minuto)%60==0 && !ajustou_hora)
+  {
+    ajuste_hora += 1;
+    ajustou_hora = true;
+  }
+  minuto = minuto - 60*ajuste_hora;
+  hora = hora + ajuste_hora;
+  minuto_atual = minuto;
+  hora_atual = hora;
+  memset(data, 0, sizeof(data));
   char timeHour[3];
   strftime(timeHour,3, "%H", &timeinfo);
   char timeMonth[10];
@@ -294,8 +333,26 @@ void atualizar_e_formatar_data_antiga(int minuto, int hora)
   strcat(data,"/");
   strcat(data,timeYear);
   strcat(data," ");
-  String hora_str = String(hora);
+  String hora_str;
+  if (hora < 10)
+  {
+    hora_str = String("0") + String(hora);
+  }
+  else
+  {
+    hora_str = String(hora);
+  }
   strcat(data, hora_str.c_str());
-  String minuto_str = ":" + String(minuto);
+  
+  String minuto_str;
+  if (minuto < 10)
+  {
+    minuto_str = String("0") + String(minuto);
+  }
+  else
+  {
+    minuto_str = String(minuto);
+  }
+  minuto_str = ":" + minuto_str;
   strcat(data,minuto_str.c_str());
 }

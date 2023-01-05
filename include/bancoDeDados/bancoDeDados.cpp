@@ -16,7 +16,7 @@ const char* serverNameSensor = "https://database-bagaggio-teste.onrender.com/reg
 #define EEPROM_SIZE 8
 #define EEPROM_COUNT_ADDRESS 0
 #define EEPROM_HOUR_ADDRESS 1
-#define SAVE_INTERVALO_MAX 2
+#define SAVE_INTERVALO_MAX 1
 #define DOC_SIZE 5000
 #define FORMAT_LITTLEFS_IF_FAILED true
 #define JSON_SAVE_FILE "/saves.json"
@@ -25,7 +25,7 @@ class Banco_de_Dados
 {
     public:
         static inline int led_banco_de_dados = 23;
-        int registrar_leituras(int pessoas, String data, String id_loja);
+        int registrar_leituras(String pessoas, String data, String id_loja);
         int registrar_loja(String id_loja);
         String httpGETRequest(const char* serverName);
         // String getRegistroLoja(char* ssid, char* password);
@@ -113,7 +113,7 @@ DynamicJsonDocument Banco_de_Dados::readFile(fs::FS &fs, const char * path){
     return json;
 }
 
-int Banco_de_Dados::registrar_leituras(int pessoas, String data, String id_loja)
+int Banco_de_Dados::registrar_leituras(String pessoas, String data, String id_loja)
 {
   WiFiClient client;
   HTTPClient http;
@@ -127,7 +127,7 @@ int Banco_de_Dados::registrar_leituras(int pessoas, String data, String id_loja)
   }
   else
   {
-    Serial.print("Error code (sensor): ");
+    Serial.print("Erro ao mandar para o banco de dados: ");
     Serial.println(sensor_resposta);
     return 0;
   }
@@ -187,51 +187,6 @@ String Banco_de_Dados::httpGETRequest(const char* serverName)
   return payload;
 }
 
-struct tm Banco_de_Dados::getDate()
-{
-  const char* ntpServer = "pool.ntp.org"; // Servidor que vai nos fornecer a data
-
-  const long gmtOffset_sec = -3600 * 3; // Quantas horas estamos atrasados em relação a GMT
-
-  const int daylightOffset_sec = 3600; // Offset do horário de verão
-
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-  struct tm timeinfo;
-
-  // if(!getLocalTime(&timeinfo))
-  // {
-  //   Serial.println("Failed to obtain time");
-  //   return 0;
-  // }
-  return timeinfo;
-}
-
-String Banco_de_Dados::getFormatedDate(struct tm timeinfo)
-{
-  char data[21];
-  char timeHour[3];
-  strftime(timeHour,3, "%H", &timeinfo);
-
-  char timeMonth[10];
-  strftime(timeMonth,10, "%B", &timeinfo);
-
-  char timeDay[3];
-  strftime(timeDay,3, "%d", &timeinfo);
-
-  char timeYear[5];
-  strftime(timeYear,5, "%Y", &timeinfo);
-  strcat(data, timeDay);
-  strcat(data,"/");
-  strcat(data,timeMonth);
-  strcat(data,"/");
-  strcat(data,timeYear);
-  strcat(data," ");
-  strcat(data,timeHour);
-  strcat(data,":00");
-  return String(data);
-}
-
 // String Banco_de_Dados::getRegistroLoja(char* ssid, char* password)
 // {
 //   String resposta;
@@ -274,9 +229,8 @@ int Banco_de_Dados::readSaveCount(int hora_atual)
   }
   int pessoas = EEPROM.read(EEPROM_COUNT_ADDRESS);
   int ultimo_registro = EEPROM.read(EEPROM_HOUR_ADDRESS);
-  if (abs(hora_atual - ultimo_registro) >= SAVE_INTERVALO_MAX)
+  if (abs(hora_atual - ultimo_registro) > SAVE_INTERVALO_MAX)
   {
-    Serial.println("Jogando valor salvo fora; foi há tempo demais");
     return 0;
   }
   else
