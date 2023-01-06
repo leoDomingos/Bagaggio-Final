@@ -5,8 +5,8 @@
 #include <HTTPClient.h>
 #include "time.h"
 
-int deteccao_maxima = 2000;         // Valor máximo de leitura dos fotorreceptores antes de ser considerado como obstruído.
-int deteccao_maxima_esq = 2000;
+int deteccao_maxima = 800;         // Valor máximo de leitura dos fotorreceptores antes de ser considerado como obstruído.
+int deteccao_maxima_esq = 500;
 int deteccao_maxima_dir = 500;
 int tempo_maximo = 2000;            // Tempo máximo que uma obstrução na esquerda seguida de uma na direita vai contar como alguém passando.
 int tempo_limite_alinhamento = 20 * 1000; // Limite de tempo antes de os laser serem considerados fora de alinhamento.
@@ -33,11 +33,11 @@ class Detector
         static bool is_obs_valid(ulong obs);
         static void esperar_alinhamento();
         void observar();
-        static inline int esq_receptor = 35;
-        static inline int dir_receptor = 34;
+        static inline int esq_receptor = 34;
+        static inline int dir_receptor = 32;
 
-        static inline int led_on = 21;
-        static inline int led_alinhamento = 22;
+        static inline int led_on = 27;
+        static inline int led_alinhamento = 26;
 
         static inline int entraram = 0;                   // Quantidade de pessoas que...
         static inline int sairam = 0;

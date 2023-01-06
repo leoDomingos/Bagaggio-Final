@@ -24,7 +24,7 @@ const char* serverNameSensor = "https://database-bagaggio-teste.onrender.com/reg
 class Banco_de_Dados
 {
     public:
-        static inline int led_banco_de_dados = 23;
+        static inline int led_banco_de_dados = 25;
         int registrar_leituras(String pessoas, String data, String id_loja);
         int registrar_loja(String id_loja);
         String httpGETRequest(const char* serverName);
@@ -100,7 +100,7 @@ void Banco_de_Dados::grabFirst(String* registro, String* data, String* contagem)
 }
 
 DynamicJsonDocument Banco_de_Dados::readFile(fs::FS &fs, const char * path){
-    Serial.printf("Reading file: %s\r\n", path);
+    // Serial.printf("Reading file: %s\r\n", path);
 
     File file = fs.open(path);
     if(!file || file.isDirectory()){
@@ -150,7 +150,6 @@ int Banco_de_Dados::registrar_loja(String id_loja)
   {
     Serial.print("Error code (loja): ");
     Serial.println(loja_resposta);
-    Serial.println(loja_json);
     return 0;
   }
   http.end();
